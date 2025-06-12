@@ -1,220 +1,202 @@
-# Conditional Molecule Generation using Diffusion Models
+# Conditional Molecule generation using diffusive model 
 
-## Chapter 3: Dataset
-
-### 3.1 ZINC250k Dataset
-
-The initial dataset used for training is the ZINC250k dataset, which contains nearly 250,000 molecular compounds with drug-like properties. These compounds are extracted from the ZINC database, a widely used resource in chemical informatics and drug discovery, making it an ideal choice for training molecular generative models.
-
-### 3.2 Property Extraction
-
-We used ADMETlab 3.0 to extract the following properties from the selected dataset.
-
-#### 3.2.1 Medicinal Chemistry
-
-Medicinal chemistry involves the identification, synthesis, and development of new chemical entities suitable for therapeutic use. It also includes the study of existing drugs, their biological properties, and their quantitative structure-activity relationships (QSAR).
-
-**Medicinal Chemistry Properties**:
-- QED
-- SA score
-- GASA
-- Fsp3
-- MCE-18
-- NP score
-- Lipinski Rule
-- Pfizer Rule
-- GSK Rule
-- Golden Triangle
-- PAINS
-- Alarm NMR Rule
-- BMS Rule
-- Chelating Rule
-- Colloidal Aggregators
-- FLuc Inhibitors
-- Blue Fluorescence
-- Green Fluorescence
-- Reactive Compounds
-- Promiscuous Compounds
-
-#### 3.2.2 Distribution
-
-Drug distribution refers to how a drug moves to and from various tissues in the body and the amount of drug present in these tissues.
-
-**Distribution Properties**:
-- PPB
-- VDss
-- BBB
-- Fu
-- OATP1B1 inhibitor
-- OATP1B3 inhibitor
-- BCRP inhibitor
-- MRP1 inhibitor
-- BSEP inhibitor
-
-#### 3.2.3 Metabolism
-
-Drug metabolism refers to how specialized enzymatic systems break down drugs, determining their duration and intensity of action.
-
-**Metabolism Properties**:
-- CYP1A2 inhibitor / substrate
-- CYP2C19 inhibitor / substrate
-- CYP2C9 inhibitor / substrate
-- CYP2D6 inhibitor / substrate
-- CYP3A4 inhibitor / substrate
-- CYP2B6 inhibitor
-- CYP2C8 inhibitor
-- HLM Stability
-
-### 3.3 Dataset Preparation
-
-The ZINC250k dataset primarily consists of molecules composed of nine key elements: Carbon (C), Nitrogen (N), Oxygen (O), Fluorine (F), Phosphorus (P), Sulfur (S), Chlorine (Cl), Bromine (Br), and Iodine (I).
-
-#### 3.3.1 Graph Representation and Bond Encoding
-
-Molecular structures are represented as graphs, where atoms represent nodes and bonds represent edges. Bond types are encoded using a multi-channel adjacency matrix that maps single, double, and triple bonds into numerical values. RDKit is used to convert SMILES strings into molecular graphs, and PyTorch Geometric is used to store data objects containing node features, bond features, and adjacency matrices.
-
-#### 3.3.2 Dataset Processing
-
-- Load raw molecular data from CSV/PKL files.
-- Convert SMILES to molecular graphs.
-- Store processed data as PyTorch tensors.
-
-#### 3.3.3 Dataset Splitting and Property Selection
-
-- Training Set: 90%
-- Testing Set: 10%
-
-The architecture allows flexibility in selecting any subset of properties extracted from ADMETlab 3.0.
-
-#### 3.3.4 Dataset Statistics
-
-| Dataset   | Number of Molecules | Number of Nodes | Node Types | Edge Types |
-|-----------|----------------------|------------------|-------------|-------------|
-| ZINC250k  | 245,490              | 6–38             | 9           | 3           |
+This repository implements **Conditional Molecule generation using diffusive model** for molecular graph generation. Our model generates molecular graphs conditioned on specific chemical and pharmacological properties such as QED, logP, solubility, and more.
 
 ---
 
-## Chapter 4: Methodology
+## 🧠 Motivation
 
-### 4.1 Model Description
+Traditional generative models like VAEs and GANs suffer from poor reconstruction quality and mode collapse. To overcome these limitations, we explore diffusion-based models that iteratively denoise molecular graphs while being guided by target molecular properties.
 
-Our model is based on Conditional Diffusion over Discrete Graph Structures (CDGS) to generate molecular graphs satisfying given properties.
+Our goal is to:
+- Generate high-quality molecular structures under given conditions.
+- Improve molecular diversity, validity, and novelty compared to existing methods.
+- Accurately condition molecule generation on desired properties like QED, logP, solubility, etc.
 
-**Key Components**:
-- **Atom/Bond Feature Encoding**: Nodes and edges are encoded with vector representations and dense multi-channel adjacency matrices.
-- **Hybrid Message-Passing**: Local GINEConv layers are combined with global graph transformers.
-- **Dual Property Conditioning**:
-  - Cross-Attention Guidance:
+---
 
-    Attention(Q, K, V) = softmax(QKᵀ / √dk) V
+## 📦 Features
 
-    where Q = graph features, K, V = property embeddings
+- Conditional molecular generation based on 36 ADMET properties.
+- Hybrid message passing blocks combining GINEConv and Transformer layers.
+- Noise prediction model with property guidance.
+- DPM-Solver-based sampling with configurable step size and batch size.
+- Evaluation using Fréchet ChemNet Distance (FCD) and Relative Root Mean Squared Error (RRMSE).
 
-  - Property Predictor: An MLP head predicts 36 molecular properties.
-- **Noise Prediction Module**: Joint prediction of noise at atom and bond levels aligned with target properties.
+---
 
-### 4.2 Training Objective
+## 📁 Dataset
 
-The goal is to conditionally generate molecular graphs satisfying desired properties using:
+We use the **ZINC250k dataset**, which contains ~245,490 drug-like molecules. Molecules are represented as graphs where atoms are nodes and bonds are edges.
 
-- **Noise Prediction Loss**:
+### Property Extraction via ADMETlab 3.0
 
-  L_noise = ||εX − ε̂X||² + ||εA − ε̂A||²
+#### 🔬 Medicinal Chemistry
 
-- **Property Prediction Loss**:
+| Property                  | Description                                       |
+|--------------------------|---------------------------------------------------|
+| QED                      | Quantitative Estimate of Drug-likeness            |
+| SA Score                 | Synthetic Accessibility Score                     |
+| GASA                     | Ghose Filter Adjusted Surface Area                |
+| Fsp³                     | Fraction of sp³-hybridized carbons                |
+| MCE-18                   | Molecular Complexity Estimator                    |
+| NP Score                 | Natural Product-likeness score                    |
+| Lipinski Rule            | Rule-of-five compliance                           |
+| Pfizer Rule              | Pfizer’s rule for drug likeness                   |
+| GSK Rule                 | GlaxoSmithKline’s rule                            |
+| Golden Triangle          | Rule for oral bioavailability                     |
+| PAINS Alarm              | Pan Assay Interference Compounds                  |
+| NMR Rule                 | Avoids compounds interfering in NMR assays        |
+| BMS Rule                 | Bristol-Myers Squibb rule                         |
+| Chelating Rule           | Avoids chelators                                  |
+| Colloidal Aggregators    | Avoids aggregators                                |
+| FLuc Inhibitors          | Firefly luciferase inhibitors                     |
+| Blue/Green Fluorescence  | Fluorescent compounds                             |
+| Reactive/Promiscuous     | Avoids non-specific reactivity                    |
 
-  L_prop = ||P − P̂||²
+#### 🧪 Distribution
 
-- **Combined Loss**:
+| Property                | Description                                                |
+|------------------------|------------------------------------------------------------|
+| PPB                    | Plasma Protein Binding                                     |
+| VDss                   | Volume of Distribution at Steady State                    |
+| BBB                    | Blood-Brain Barrier Penetration                           |
+| Fu                     | Fraction Unbound                                           |
+| OATP1B1/1B3 Inhibitor  | Organic Anion Transporter Polypeptide Inhibitors          |
+| BCRP Inhibitor         | Breast Cancer Resistance Protein Inhibitor                |
+| MRP1 Inhibitor         | Multidrug Resistance-associated Protein Inhibitor         |
+| BSEP Inhibitor         | Bile Salt Export Pump Inhibitor                           |
 
-  L = L_noise + wp · L_prop
+#### 🧬 Metabolism
 
-The model employs stochastic differential equations (SDEs) and uses an Exponential Moving Average (EMA) model and AdamW optimizer with gradient clipping.
+| Property                        | Description                           |
+|--------------------------------|---------------------------------------|
+| CYP1A2–CYP3A4 Inhibitor/Substrate | Cytochrome P450 Enzyme Interactions |
+| CYP2B6/CYP2C8 Inhibitor        | Additional Cytochrome Interactions    |
+| HLM Stability                  | Human Liver Microsome Stability       |
 
-**Forward Diffusion Process**:
+### Dataset Statistics
 
-Gt = (α(t)X₀ + σ(t)εX, α(t)A₀ + σ(t)εA)
+| Metric              | Value                |
+|---------------------|----------------------|
+| Number of Molecules | 245,490              |
+| Node Types          | 9 (C, N, O, F, P, S, Cl, Br, I) |
+| Edge Types          | 3 (single, double, triple)      |
+| Node Size Range     | 6–38 atoms           |
+| Train/Test Split    | 90% / 10%            |
 
-### 4.3 The Framework
+---
 
-- **Data Preprocessing**: Convert SMILES to graphs, normalize features, quantize bond types, and normalize properties.
-- **Diffusion Process**:
-  - Forward: Adds noise using a VPSDE schedule.
-  - Reverse: Uses a noise prediction module with DPM-Solvers and cross-attention to generate graphs conditionally.
-- **Property Conditioning**: Cross-attention and MLP property predictors guide generation.
-- **Training**: The model learns to predict both noise and properties.
-- **Sampling & Generation**: Denoising from noise using learned guidance to generate valid molecular graphs.
+## ⚙️ Training
 
-### 4.4 The Architecture
+### Hidden Dimension = 256
 
-| Component                   | Description |
-|----------------------------|-------------|
-| Time/Property Embedding    | Sinusoidal for time; MLP for properties |
-| Hybrid Message Passing     | GINEConv + Transformer with cross-attention |
-| Attention Mechanisms       | Focus on property-guided generation |
-| Noise Prediction Module    | Predicts noise for atoms and bonds |
-| Property Predictor         | MLP-based property prediction from graph features |
-| EMA                        | Ensures training stability |
+```bash
+CUDA_VISIBLE_DEVICES=0 python main.py \
+--config configs/vp_zinc_cdgs.py \
+--mode train \
+--workdir exp/vpsde_zinc_cdgs_256 \
+--config.training.n_iters 2500000
+```
 
-### 4.5 Algorithms Used
+### Hidden Dimension = 128
+
+```bash
+CUDA_VISIBLE_DEVICES=0 python main.py \
+--config configs/vp_zinc_cdgs.py \
+--mode train \
+--workdir exp/vpsde_zinc_cdgs_128 \
+--config.training.batch_size 128 \
+--config.training.eval_batch_size 128 \
+--config.training.n_iters 2500000
+```
+
+Pretrained checkpoints are available in `exp/vpsde_qm9_cdgs`.
+
+---
+
+## 🔍 Sampling & Evaluation
+
+Use DPM-Solver for conditional sampling:
+
+### Example: Order 3, 50 Steps
+
+```bash
+CUDA_VISIBLE_DEVICES=0 python main.py \
+--config configs/vp_zinc_cdgs.py \
+--mode eval \
+--workdir exp/vpsde_zinc_cdgs_256 \
+--config.eval.begin_ckpt 250 \
+--config.eval.end_ckpt 250 \
+--config.eval.batch_size 800 \
+--config.sampling.method dpm3 \
+--config.sampling.ode_step 50
+```
+
+### Additional Sampling Options
+
+- Use `--config.eval.nspdk` for NSPDK evaluation.
+- Adjust number of steps via `--config.model.num_scales YOUR_STEPS`.
+- Control GPU memory usage via `--config.eval.batch_size`.
+
+---
+
+## 📊 Evaluation Metrics
+
+### Fréchet ChemNet Distance (FCD)
+Measures similarity between generated and real molecules. Lower values indicate better performance.  
+**Result**: `FCD = 37.8931`
+
+### Relative Root Mean Squared Error (RRMSE)
+Normalized RMSE used to evaluate accuracy of predicted molecular properties.
+
+| Property | RRMSE |
+|----------|-------|
+| GASA     | 0.936 |
+| HIA      | 148.1 |
+| QED      | 0.3796 |
+| F20%     | 0.8921 |
+| SAscore  | 0.7044 |
+| F30%     | 0.7115 |
+| Fsp3     | 1.577 |
+| F50%     | 0.6002 |
+| MCE-18   | 0.4864 |
+| PPB      | 0.3714 |
+| ...      | ...   |
+
+*(See full table in the report)*
+
+---
+
+## 🏛️ Methodology
+
+### Architecture Overview
+
+| Component                  | Description                                              |
+|---------------------------|----------------------------------------------------------|
+| Time/Property Embedding   | Sinusoidal positional encoding + MLP embeddings          |
+| Hybrid Message Passing    | 10 GINEConv layers + Transformer                         |
+| Attention Mechanisms      | Cross-attention for property conditioning                |
+| Noise Prediction Module   | Predicts noise in atom/bond features                     |
+| Property Predictor        | MLP heads predicting molecular properties                |
+| EMA                       | Exponential Moving Average for stable training           |
+
+---
+
+### Key Algorithms
 
 #### Algorithm 1: Optimizing CDGS
-
-1. Sample t ∼ U(0,1], εX, εA ∼ N(0,I)
-2. Compute noisy graph: Gt = (α(t)X₀ + σ(t)εX, α(t)A₀ + σ(t)εA)
-3. Quantize adjacency: Ât = quantize(At)
-4. Predict noise and properties: ε̂X, ε̂A, P̂ = model(Gt, Ât, t, P)
-5. Compute loss: L = L_noise + wp · L_prop
-6. Backpropagate and optimize model
+1. Sample time and noise.
+2. Corrupt input graph using schedule functions.
+3. Quantize adjacency matrix.
+4. Predict noise and properties.
+5. Combine losses: `L_noise + w_p * L_property`.
 
 #### Algorithm 2: Graph DPM-Solver
-
-1. Compute step size: hi = λ(ti) − λ(ti−1)
-2. Quantize At
-3. Predict: ε̂X, ε̂A, P̂ = model(X, A, t)
-4. Compute gradients of property loss
-5. Adjust noise predictions with gradients
-6. Update X and A using reverse SDE
-7. Repeat for all time steps
+1. Start from noisy graph.
+2. Iteratively denoise using DPM-Solvers.
+3. Inject property gradients during sampling.
+4. Post-process final graph to ensure validity.
 
 ---
-
-## Chapter 5: Results and Evaluation
-
-### 5.1 Evaluation Metrics Used
-
-#### 5.1.1 Fréchet ChemNet Distance (FCD)
-
-FCD evaluates the similarity between generated and real molecules. A lower score indicates higher similarity. Our model achieved:
-
-**FCD Score**: 37.89313220237589
-
-#### 5.1.2 Relative Root Mean Squared Error (RRMSE)
-
-RRMSE is preferred over RMSE as it normalizes the error with respect to actual values, making it scale-independent. It is more suitable for evaluating molecular properties with small magnitudes.
-
-We generated 5,000 molecules and compared their predicted properties against the ground truth using RRMSE.
-
-### Property-Wise RRMSE Scores
-
-| Property                  | RRMSE     | Property                  | RRMSE     |
-|---------------------------|-----------|---------------------------|-----------|
-| GASA                      | 0.936     | HIA                       | 148.1     |
-| QED                       | 0.3796    | F20%                      | 0.8921    |
-| SAscore                   | 0.7044    | F30%                      | 0.7115    |
-| Fsp3                      | 1.577     | F50%                      | 0.6002    |
-| MCE-18                    | 0.4864    | PPB                       | 0.3714    |
-| NPscore                   | 0.8547    | VDss                      | 9.591     |
-| Alarm NMR Rule            | 0.7462    | Fu                        | 2.573     |
-| BMS Rule                  | 0.9008    | BBB                       | 6.201     |
-| Chelating Rule            | 0.9985    | OATP1B1 inhibitor         | 0.6889    |
-| PAINS                     | 0.9887    | OATP1B3 inhibitor         | 0.5861    |
-| Lipinski Rule             | 0.014     | BCRP inhibitor            | 10.29     |
-| Pfizer Rule               | 0.138     | MRP1 inhibitor            | 0.3457    |
-| GSK Rule                  | 0.1278    | Colloidal Aggregators     | 0.6736    |
-| Golden Triangle           | 0.059     | FLuc Inhibitors           | 0.6971    |
-| Caco-2 Permeability       | 0.1991    | Blue Fluorescence         | 3.572     |
-| MDCK Permeability         | 0.0564    | Green Fluorescence        | 13.99     |
-| PAMPA                     | 0.6258    | Reactive Compounds        | 0.7665    |
-| Pgp Inhibitor             | 443.6     | Pgp Substrate             | 6.838     |
 
